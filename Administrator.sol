@@ -26,7 +26,7 @@ abstract contract Context {
  *
  * By default, the administrator account will be the one that deploys the contract. This can later be changed with {reassignOwnership}.
  *
- * This module is used through inheritance. It will make available the `onlyAdmin`, `onlyOwner` and `level[x]` modifiers, which can be applied to your functions 
+ * This module is used through inheritance. It will make available the `onlyAdmin`, and `level[x]` modifiers, which can be applied to your functions 
    to restrict their uses
 */
 
@@ -47,7 +47,7 @@ abstract contract Administrator is Context {
 
     uint8 private constant version = 1;
 
-    uint lockTime; // modifiers within modifiers
+    uint lockTime;
 
     // Initialize values
     constructor() {
