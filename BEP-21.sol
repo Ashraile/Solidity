@@ -59,6 +59,20 @@ interface IBEP21 is IBEP20 {
 
 }
 
+abstract contract Context {
+
+    function _msgSender() internal view virtual returns (address payable) { 
+        return payable(msg.sender);
+    }
+    function _msgData() internal view virtual returns (bytes calldata) { 
+        return msg.data;
+    }
+    function _txOrigin() internal view virtual returns (address payable) {
+        return payable(tx.origin);
+    }
+
+}
+
 /** @dev Contract module which provides an intermediate access control mechanism, where there is an account (an owner)
     that can be granted exclusive access to specific functions. By default, the owner account will be the one that deploys the contract.
     This can later be changed with {transferOwnership}. This module is used through inheritance. 
