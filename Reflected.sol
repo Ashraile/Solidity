@@ -80,21 +80,25 @@ abstract contract Reflected is BEP21 {
 
     uint private constant MAX = ~uint(0); // 2**256 - 1
 
-    address[] private rExcluded; // mapping (address => bool) isReflectionExcluded;
+    address[] private rExcluded; 
+    
+    // mapping (address => bool) isReflectionExcluded;
 
     uint internal ReflectionPool; // All tokens that will be redistributed among holders
 
-    /// @dev [Private | Internal] Overrides inherited `_balanceOf()`.
+    /*
+    * @dev [Private | Internal] Overrides inherited `_balanceOf()`.
+    */ 
     function _balanceOf(address account) internal view virtual override returns (uint) {
-        return addresses[account].isReflectionExcluded ? addresses[account].balance : reflectTokenBalance(addresses[account].balance); // 5209 ~2620
+        return addresses[account].isReflectionExcluded ? addresses[account].balance : reflectTokenBalance(addresses[account].balance);
     }
 
-    /// @dev Determines if an account is excluded from reflections.
-    function _isExcluded(address account) internal view virtual returns (bool) { 
+    /*
+    * @dev Determines if an account is excluded from reflections.
+    */
+    function _isReflectionExcluded(address account) internal view virtual returns (bool isReflectionExcluded) { 
         return addresses[account].isReflectionExcluded;
     }
-
-    // Some visibilities are set to public for your development testing purposes.
 
     /** @dev [Private | Internal] Returns all unburned tokens owned by reflection excluded accounts. Current gas cost (remix): ~20,000.
         NOTE: If there are no excluded accounts, the majority of reflections will be owned by the owner and burn accounts, 
@@ -109,15 +113,15 @@ abstract contract Reflected is BEP21 {
         CEXes (Kraken, Binance) SHOULD receive reflections for delegation towards their respective sub-accounts.
     */
     function getExcludedSupply() public view virtual returns (uint ReflectionExcludedTokens) {
-      unchecked {
         uint i; uint len = rExcluded.length;
-        for (; i<len;) {
-            if (rExcluded[i] != BURN) { // While the BURN account is indeed excluded, it also reduces total supply, so we skip adding its balance to avoid double entry
-                ReflectionExcludedTokens += addresses[rExcluded[i]].balance;
-            } ++i;
+        unchecked {
+            for (; i<len;) {
+                if (rExcluded[i] != BURN) { // While the BURN account is indeed excluded, it also reduces total supply, so we skip this balance to avoid double entry.
+                    ReflectionExcludedTokens += addresses[rExcluded[i]].balance;
+                } ++i;
+            }
+            return ReflectionExcludedTokens;
         }
-        return ReflectionExcludedTokens; // always <=354e12
-      }
     }
 
     /// @dev Returns all tokens not owned by reflection excluded accounts.
@@ -127,9 +131,13 @@ abstract contract Reflected is BEP21 {
         }
     }
 
+    /// @dev Returns the reflection pool.
+    function getReflectionPool() public view returns (uint ReflectedTokens) { return ReflectionPool; }
+
+
     /** @dev [Private] Returns an account's balance combined with applied reflections. Accurate to 1 shard
         uint MarketShareAsUINT = tBalance.mulDiv(MAX_ACCURACY, supply);
-        uint Reflections = MarketShareAsUINT.mulDiv(ReflectionPool, MAX_ACCURACY);
+        uint Reflections = MarketShareAsUINT.mulDiv(ReflectionPool, MAX_ACCURACY); 
      */
     function reflectTokenBalance(uint tBalance) public view virtual returns (uint) {
         uint supply = getIncludedSupply(); 
@@ -141,22 +149,23 @@ abstract contract Reflected is BEP21 {
         }
     }
 
+
     /** @dev [Private] Returns an account's balance decombined from applied reflections. (reflectTokenBalance => value <= unreflectTokenBalance)
-    Example numbers working backwards: TotalCurrentSupply: 100000, ReflectionPool: 20000, PostReflectionBalance: 884.4, PreReflectionBalance: `x`
+        Example numbers working backwards: TotalCurrentSupply: 100000, ReflectionPool: 20000, PostReflectionBalance: 884.4, PreReflectionBalance: `x`
 
-    1. x + [ MarketShareAsUINT * ReflectionPool) ] = PostReflectionBalance
-    2. x + [ (x / TotalCurrentSupply) * ReflectionPool ] = PostReflectionBalance
-    3. x + [ (x / 100000) * 20000 ] = 884.4
-    4. x + [ (20000x) / 100000 ] = 884.4
-    5. 100000x + 20000x = 884.4 * 100000
-    6. 120000x = 88440000 ==> x = 88440000 / 120000 ==> x = 737
+        1. x + [ MarketShareAsUINT * ReflectionPool) ] = PostReflectionBalance
+        2. x + [ (x / TotalCurrentSupply) * ReflectionPool ] = PostReflectionBalance
+        3. x + [ (x / 100000) * 20000 ] = 884.4
+        4. x + [ (20000x) / 100000 ] = 884.4
+        5. 100000x + 20000x = 884.4 * 100000
+        6. 120000x = 88440000 ==> x = 88440000 / 120000 ==> x = 737
 
-    Solving for `x` from step 5:
+        Solving for `x` from step 5:
 
-    `x` = (PostReflectionBalance * TotalCurrentSupply) / (TotalCurrentSupply + ReflectionPool)
-    `x`  = (884.4 * 100000) / (100000 + 20000)
-    `x`  = 88440000 / 120000 => 737
-    */
+        `x` = (PostReflectionBalance * TotalCurrentSupply) / (TotalCurrentSupply + ReflectionPool)
+        `x`  = (884.4 * 100000) / (100000 + 20000)
+        `x`  = 88440000 / 120000 => 737
+     */
     function unreflectTokenBalance(uint cBalance) public view virtual returns (uint) { 
         uint supply = getIncludedSupply(); 
         if (supply == 0 || cBalance == 0) { return cBalance; }  
@@ -171,59 +180,45 @@ abstract contract Reflected is BEP21 {
     }
 
 
-    function _beforeTokenTransfer(address from, address to, uint Lunari) internal virtual override returns (uint) {
+    // If you want the burn account to receive reflections:
+    // function totalSupply2() public view returns (uint) { return totalSupply - _balanceOf(BURN); }
 
-        if (from == address(0) || to == address(0) || from == BURN) { 
-            revert InvalidTransfer(); // However, allow direct transfers to the BURN address.
-        }
+    function addReflections(uint reflections) public onlyOwner virtual returns (bool) { ReflectionPool += reflections; return true; }
+    function setReflections(uint reflections) public onlyOwner virtual returns (bool) { ReflectionPool = reflections; return true; }
+
+
+    /** @notice While excluded, any reflections the account has are now erased. This increases rBalance for all other reflected accounts.
+     */
+    function _excludeFromReflections(address account) public onlyOwner access(2) returns (bool success) {   
+        require(addresses[account].isReflectionExcluded == false, "Account is already excluded.");
+
+        addresses[account].isReflectionExcluded = true;
+        rExcluded.push(account);
+        return true;
     }
 
-    function _afterTokenTransfer (address from, address to, uint Lunari) internal virtual override returns (bool) {}
+    /** @notice Including a balance decreases rBalance for all other reflected accounts.
+    */
+    function _includeInReflections(address account) public onlyOwner access(2) returns (bool success) {
+        require(addresses[account].isReflectionExcluded == true, "Account is already not excluded.");
 
+        uint i; uint len = rExcluded.length; 
+        unchecked { // remove address from rExcluded[]
+            for (; i<len;) {
+                if (account == rExcluded[i]) {
+                    rExcluded[i] = rExcluded[len-1]; // swaps places with last element in the array
+                    rExcluded.pop(); 
 
-    // if you want the burn account to receive reflections:
-    // function totalSupply2() public view returns (uint supply) { return totalSupply - _balanceOf(BURN); }
-
-    function addReflections(uint reflections) public virtual returns (uint) {
-        ReflectionPool += reflections;
-    }
-
-    function setReflections(uint reflections) public virtual returns (uint) {
-        ReflectionPool = reflections;
-    }
-
-    /** @dev setReflectionStatus(..., false) => Excludes account and account balance from reflections
-     * setReflectionStatus(..., true) => Includes account and account balance in reflections */
-    function setReflectionStatus(address account, bool status) public onlyOwner access(1) returns (bool success) {
-
-        // require(account != 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D, 'We can not exclude Uniswap router.');
-
-        if (status == false) {
-            require( ! _isExcluded(account), "Account is already excluded from reflections.");
-            addresses[account].balance = _balanceOf(account); // get the full balance of the account including reflections.
-            addresses[account].isReflectionExcluded = true;
-            rExcluded.push(account); // add the account to 'reflection excluded' array
-            return true;
-
-        } else {
-            require( _isExcluded(account), "Account already receives reflections.");
-            // set the new balance so that (new balance + current reflections) = original rExcluded balance
-            addresses[account].balance = unreflectTokenBalance(addresses[account].balance); 
-            addresses[account].isReflectionExcluded = false;
-
-            // now remove the account from rExcluded
-            unchecked {
-                uint i; uint len = rExcluded.length; 
-                for (; i<len;) {
-                    if ( account == rExcluded[i] ) {
-                        rExcluded[i] = rExcluded[len-1]; // swaps places with last element in the array
-                        rExcluded.pop(); // remove the address from rExcluded
-                        return true; // clears every match if 'return' is omitted
-                    } ++i;
-                }
+                    addresses[account].isReflectionExcluded = false;
+                    return true;
+                } ++i;
             }
         }
     }
+
+    function _excludeFromReflectionsPreservingBalance(address account) public onlyOwner access(1) returns (bool success) {}
+    function _includeInReflectionsPreservingBalance(address account) public onlyOwner access(1) returns (bool success) {}
+
 
     /// @dev Function to handle reflection fees on transfer.
     function _takeAndHandleFees(uint amount) internal virtual returns (uint remainder) {
@@ -238,11 +233,22 @@ abstract contract Reflected is BEP21 {
 
         return amount;
     }
-
     function _takeAndHandleFees(uint amount, uint senderBalance) internal virtual returns (uint remainder) {}
 
-    /// @dev Reflection implementation of `transfer()`. Can be overridden.
+
+    function _afterTokenTransfer (address from, address to, uint Lunari) internal virtual override returns (bool) {}
+    function _beforeTokenTransfer(address from, address to, uint Lunari) internal virtual override returns (uint) {
+
+        if (from == address(0) || to == address(0) || from == BURN) { 
+            revert InvalidTransfer(); // However, allow direct transfers to the BURN address.
+        }
+    }
+
+    /*
+    * @dev Reflection implementation of `transfer()`. Can be overridden.
+    */
     function _transfer(address from, address to, uint amount, bool ForceFeeExemption) internal virtual override returns (bool) {
+        
         _beforeTokenTransfer(from, to, amount);
 
         uint senderBalance = _balanceOf(from); // get the sender balance including reflections. (if applicable).
@@ -254,10 +260,9 @@ abstract contract Reflected is BEP21 {
             NOTE: Otherwise, `senderBalance` is reflected, so we must solve for the unreflected token balance which, after applicable reflections,
             will equal the interim reflected balance. "Taking out" the reflections so they won't compound upon themselves for every transfer.
         */
-        unchecked { 
-
+        unchecked {
             // First update the sender balance.
-            addresses[from].balance = _isExcluded(from) ? (senderBalance - amount) : unreflectTokenBalance(senderBalance - amount);
+            addresses[from].balance = _isReflectionExcluded(from) ? (senderBalance - amount) : unreflectTokenBalance(senderBalance - amount);
             
             // Subtract and allocate the fees as needed from the transfer amount.
             amount = _takeAndHandleFees(amount);
@@ -270,5 +275,7 @@ abstract contract Reflected is BEP21 {
         _afterTokenTransfer(from, to, amount);
         return true;
     }
+
+}
 
 }
