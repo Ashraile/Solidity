@@ -1,14 +1,11 @@
 /// SPDX-License-Identifier: MIT
-/**
-    @author Jasper Wolf (https://github.com/Ashraile)
-    @title BEP-21.sol
-    @dev An advanced extensible, and highly customizable token generator boilerplate.
+/** @author Jasper Wolf (https://github.com/Ashraile)
+    @title BEP21.sol
 */
 
-pragma solidity 0.8.20;
+pragma solidity 0.8.21;
 
-/** @dev Interface of the BEP20 standard. @custom:ref https://github.com/bnb-chain/BEPs/blob/master/BEPs/BEP20.md
-*/
+/** @dev Interface of the BEP20 standard. @custom:ref https://github.com/bnb-chain/BEPs/blob/master/BEPs/BEP20.md */
 interface IBEP20 {
 
     event Approval (address indexed owner, address indexed spender, uint Lunari); 
@@ -20,42 +17,31 @@ interface IBEP20 {
     function symbol()   external view returns (string memory);     /// @dev Returns the token symbol.
     function totalSupply() external view returns (uint);           /// @dev Returns the (current) amount of unburned tokens in existence.
     
-    function allowance(address holder, address spender) external view returns (uint remaining);
-    function approve(address spender, uint Lunari) external returns (bool success);
-    function balanceOf(address account) external view returns (uint Lunari);     /// @dev Returns the balance in Lunari of a given address.
-    function transfer(address to, uint Lunari) external returns (bool success);
-    function transferFrom(address from, address to, uint Lunari) external returns (bool success);
+    function allowance(address holder, address spender) external view returns (uint remaining);   /// @dev Returns the spender allowance allocated by holder.
+    function approve(address spender, uint Lunari) external returns (bool success);               /// @dev Allocates an allowance to `spender` from caller.
+    function balanceOf(address account) external view returns (uint Lunari);                      /// @dev Returns the token balance of a given address.
+    function transfer(address to, uint Lunari) external returns (bool success);                   /// @dev Transfers balance from caller to `to`.
+    function transferFrom(address from, address to, uint Lunari) external returns (bool success); /// @dev Transfers an approved balance from `from` to `to`.
 
 }
 
-/** @dev The BEP20 standard, extended. */
+/** @dev Interface extending the BEP20 standard. */
 interface IBEP21 is IBEP20 {
 
-    error InsufficientBalance(uint attempted, uint available);
+    error InsufficientBalance(uint by);
     error InsufficientAllowance(uint attempted, uint allowance);
     error InvalidApproval();
     error InvalidTransfer();
+    error InvalidBalance();
+    error InvalidTransferAmount();
 
-    event Burn(address indexed from, uint indexed amount);       /// @dev Default burn address is 0x000000000000000000000000000000000000dEaD.
+    event Burn(address indexed from, uint indexed amount);             /// @dev Default burn address is 0x000000000000000000000000000000000000dEaD.
 
-    struct TokenData { 
-        bytes32 name;
-        bytes32 symbol; 
-        bytes32 version; 
-        uint8 decimals; 
-        uint releaseDate; 
-        uint releaseSupply;
-    }
-
-    function burn(uint Lunari) external returns (bool success);  /// @dev Burns the specified amount from caller's account. Reduces total supply.
-
-    function getThis() external view returns (address payable);  /// @dev Returns the token contract address `address(this)`. {immutable}
-
-    function releaseDate() external view returns (uint);         /// @dev Returns the token blockchain genesis date in UNIX epoch time. {immutable}
-
-    function releaseSupply() external view returns (uint);       /// @dev Returns the initial token supply at creation, with decimals. {immutable | constant}
-
-    function version() external view returns (string memory);    /// @dev Returns the token contract build version.
+    function getThis()       external view returns (address payable);  /// @dev Returns the token contract address `address(this)`. {immutable}
+    function releaseDate()   external view returns (uint40);           /// @dev Returns the token blockchain genesis date in UNIX epoch time. {immutable}
+    function releaseSupply() external view returns (uint);             /// @dev Returns the initial token supply at creation, with decimals. {immutable | constant}
+    function version()       external view returns (string memory);    /// @dev Returns the token contract build version.
+    function burn(uint Lunari) external returns (bool success);        /// @dev Burns the specified amount from caller's account. Reduces total supply.
 
 }
 
@@ -77,13 +63,14 @@ abstract contract Context {
     that can be granted exclusive access to specific functions. By default, the owner account will be the one that deploys the contract.
     This can later be changed with {transferOwnership}. This module is used through inheritance. 
     It will make available the modifier `onlyOwner`, which can be applied to your functions to restrict their use to the owner.
+    @custom:version 3.1
  */ 
-abstract contract Admin is Context {
+abstract contract Ownable is Context {
 
     event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
-    event AccessLowered(address indexed owner, uint8 indexed access, uint timestamp);
+    event AccessLowered(address indexed owner, uint8 indexed access, uint indexed timestamp);
 
-    error InsufficientAccess();
+    error NoAccess();
     error Unauthorized();
     error IncorrectPIN();
 
@@ -93,28 +80,40 @@ abstract contract Admin is Context {
     }
 
     address payable public owner; // => owner()
+    address payable private oldOwner;
+    uint8 public ownerAccess = 3; /// @dev Internal variable for tiered owner privileges.
 
-    /// @dev Internal variable for tiered owner privileges.
-    uint8 public ownerRoot = 3;
+    modifier access(uint8 level) {
+        if (ownerAccess < level) { revert NoAccess(); }
+        _;
+    }
 
     /// @dev Throws if called by any account other than the owner, or if owner has renounced ownership.
     modifier onlyOwner {
-        if (_msgSender() != owner || owner == address(0)) { revert Unauthorized(); }
+        _checkOwner();
         _;
-     }
-    
+    }
+
     /// @dev Throws if PIN does not match the keccak256 encoded hash (hardcoded by owner before deployment).
     modifier passcode(string calldata PIN) {
+        _checkPIN(PIN);
+        _;
+    }
+
+    function _checkOwner() internal view virtual {
+        if (_msgSender() != owner || owner == address(0)) { revert Unauthorized(); }
+    }
+
+    function _checkPIN(string calldata PIN) internal view virtual {
         if (keccak256(abi.encode(PIN)) != 0x1a3de7f8fee736ca6a61818e30cd3f87f1f33473225476af28ae8c1a0786c7eb) { 
             revert IncorrectPIN();
         }
-        _;
     }
 
     /// @dev Lowers access level for the owner. Once lowered it cannot be increased.
     function lowerOwnerAccess() external onlyOwner returns (uint8) {
-        emit AccessLowered(owner, ownerRoot-1, block.timestamp);
-        return --ownerRoot;
+        emit AccessLowered(owner, ownerAccess-1, block.timestamp);
+        return --ownerAccess;
     }
 
     /** @dev Transfers ownership of the contract to a new account (`newOwner`). Can only be called by the current owner.
@@ -128,8 +127,7 @@ abstract contract Admin is Context {
 
     /// @dev Transfers ownership of the contract to a new account (`newOwner`). Internal function without access restriction.
     function _transferOwnership(address newOwner) private {
-        address oldOwner = payable(owner); 
-        owner = payable(newOwner);
+        (oldOwner, owner) = (payable(owner), payable(newOwner));
         emit OwnershipTransferred(oldOwner, newOwner);
     }
 }
@@ -162,168 +160,157 @@ abstract contract Idempotent {
     }
 }
 
+
 /** @author Jasper Wolf (https://www.github.com/Ashraile)
-    @dev Advanced customizable BEP20 token generation framework.
+    @dev Advanced customizable BEP20 token generation framework. @custom:ref https://github.com/bnb-chain/BEPs/blob/master/BEPs/BEP20.md
 */
-abstract contract BEP21 is IBEP21, Admin, Idempotent {
-    
+abstract contract BEP21 is IBEP20, IBEP21, Ownable, Idempotent {
+
     /// @dev Initializes the token contract metadata via child constructor.
     constructor(TokenData memory Token) {
   
+        (NULL, BURN, THIS) = (payable(0), payable(address(57005)), payable(address(this)));
+
         (_name, _symbol, _version, decimals) = (Token.name, Token.symbol, Token.version, Token.decimals);
-        (releaseDate, releaseSupply) = (Token.releaseDate, Token.releaseSupply);
 
-        addresses[owner].balance = totalSupply = releaseSupply;
-        emit Transfer(NULL, owner, totalSupply);
+        releaseDate = uint40(block.timestamp);
+        releaseSupply = balances[_msgSender()] = _totalSupply = _pow10(Token.totalSupply, decimals);
 
-        delete Token; 
+        emit Transfer(NULL, _msgSender(), releaseSupply);
     }
 
-    /// @dev Extensible struct allows easy integration with custom token implementations.
-    struct Account {
-        mapping (address => uint) allowances;
-        uint balance;
-        bool isBlacklisted;
-        bool isExchange;
-        bool isReflectionExcluded;
-        bool isTaxExempt;
+    struct TokenData { 
+        bytes32 name; bytes32 symbol; bytes32 version; uint8 decimals; uint totalSupply;
     }
-
-    mapping (address => Account) internal addresses;
+   
+    mapping (address holder => mapping (address spender => uint allotment)) internal allowances;
+    mapping (address user => uint balance) internal balances;
 
     /** @custom:ref https://docs.soliditylang.org/en/v0.8.21/contracts.html#getter-functions
-        NOTE: The Solidity compiler automatically generates external view functions for public variables.
+     *  NOTE: The Solidity compiler automatically generates external view functions for public variables.
      *  NOTE: Solidity ~0.8.20 does not support immutable strings, so bytes32 is used as a workaround.
-     *  NOTE: Encoding immutable bytes32 loses ~200 gas compared to `string public constant name = {name}`, but saves 2000 runtime gas over regular implementations,
-     *  and allows for dynamic customization in child constructor. */
+     *  NOTE: Encoding immutable bytes32 loses ~200 gas compared to `string public constant name = {name}`, but saves 2000 runtime gas over 
+     *  non-immutable implementations, and allows for dynamic customization in child constructor. */
 
-    address payable internal constant NULL = payable(0);
-    address payable internal constant BURN = payable(0x000000000000000000000000000000000000dEaD);
-    
+    address payable internal immutable NULL; // 0x0000000000000000000000000000000000000000
+    address payable internal immutable BURN; // 0x000000000000000000000000000000000000dEaD
+    address payable internal immutable THIS; // 0x(address(this))
+
     bytes32 private immutable _name; 
     bytes32 private immutable _symbol;
     bytes32 private immutable _version;
+    
+    uint256 internal _totalSupply;
+    
+    uint8   public immutable decimals;      /// @dev See {IBEP20-decimals}.
+    uint40  public immutable releaseDate;   /// @dev See {IBEP21-releaseDate}.
+    uint256 public immutable releaseSupply; /// @dev See {IBEP21-releaseSupply}.
 
-    uint8 public immutable decimals;      // => decimals()
+    /// @dev See {IBEP20-totalSupply}.
+    function totalSupply() public view virtual returns (uint) { return _totalSupply; }
 
-    uint public immutable releaseDate;    // => releaseDate()
-    uint public immutable releaseSupply;  // => releaseSupply()
+    /// @dev See {IBEP20-getOwner}.
+    function getOwner() public view virtual returns (address payable) { return payable(owner); } 
+    
+    /// @dev See {IBEP21-getThis}.
+    function getThis() public view virtual returns (address payable) { return THIS; }
 
-    uint public totalSupply;              // => totalSupply()
+    /// @dev See {IBEP20-name}.
+    function name() public view virtual returns (string memory) { return string(abi.encodePacked(_name)); }
 
-    /// @dev See {BEP20-name}.
-    function name() external view returns (string memory) { return string(abi.encodePacked(_name)); }
-
-    /// @dev See {BEP20-symbol}.
-    function symbol() external view returns (string memory) { return string(abi.encodePacked(_symbol)); } 
+    /// @dev See {IBEP20-symbol}.
+    function symbol() public view virtual returns (string memory) { return string(abi.encodePacked(_symbol)); } 
 
     /// @dev See {IBEP21-version}.
-    function version() external view returns (string memory) { return string(abi.encodePacked(_version)); } 
+    function version() public view virtual returns (string memory) { return string(abi.encodePacked(_version)); } 
 
-    /// @dev See {BEP20-allowance}.
-    function allowance(address owner, address spender) external view returns (uint remaining) {
-        return addresses[owner].allowances[spender];
+
+    /// @dev See {IBEP20-allowance}.
+    function allowance(address holder, address spender) public view virtual returns (uint remaining) {
+        return allowances[holder][spender];
     }
 
-    /// @dev See {BEP20-approve}.
-    function approve(address spender, uint limit) external returns (bool) { 
-        return _approve( _msgSender(), spender, limit );
+    /// @dev See {IBEP20-approve}.
+    function approve(address spender, uint limit) public virtual returns (bool approval) { 
+        return _approve(_msgSender(), spender, limit);
     }
 
-    /// @dev See {BEP20-balanceOf}.
-    function balanceOf(address account) external view returns (uint Lunari) {
-        return _balanceOf(account);
+    /// @dev See {IBEP20-balanceOf}.
+    function balanceOf(address account) public view virtual returns (uint Lunari) { 
+        return balances[account]; 
     }
 
     /// @dev See {IBEP21-burn}.
-    function burn(uint Lunari) external idempotent returns (bool) {
+    function burn(uint Lunari) public virtual idempotent returns (bool success) {
         return _transfer(_msgSender(), BURN, Lunari, true);
     }
 
     /// @dev Atomic approval decrease. Defacto standard.
-    function decreaseAllowance(address spender, uint subtractedValue) external virtual returns (bool) {
+    function decreaseAllowance(address spender, uint subtractedValue) public virtual returns (bool success) {
         address sender = _msgSender();
-        return _approve(sender, spender, (addresses[sender].allowances[spender] - subtractedValue)); 
+        return _approve(sender, spender, (allowance(sender, spender) - subtractedValue)); 
     }
 
     /// @dev Atomic approval increase. Defacto standard.
-    function increaseAllowance(address spender, uint addedValue) external virtual returns (bool) {
+    function increaseAllowance(address spender, uint addedValue) public virtual returns (bool success) {
         address sender = _msgSender();
-        return _approve(sender, spender, (addresses[sender].allowances[spender] + addedValue));
-    }
-
-    /// @dev See {BEP20-getOwner}.
-    function getOwner() external view returns (address payable) { 
-        return payable(owner); 
-    } 
-    
-    /// @dev See {IBEP21-getThis}.
-    function getThis() public override view returns (address payable) {
-        return payable(address(this));
+        return _approve(sender, spender, (allowance(sender, spender) + addedValue));
     }
 
     /// @dev See {BEP20-transfer}.
-    function transfer(address to, uint Lunari) external idempotent returns (bool) { 
-        return _transfer(_msgSender(), to, Lunari, false); 
+    function transfer(address to, uint amount) public virtual idempotent returns (bool success) { 
+        return _transfer(_msgSender(), to, amount, false); 
     }
 
     /// @dev See {BEP20-transferFrom}.
-    function transferFrom(address from, address to, uint Lunari) external idempotent returns (bool) {
+    function transferFrom(address from, address to, uint Lunari) public virtual idempotent returns (bool success) {
         address sender = _msgSender();
-        uint limit = addresses[from].allowances[sender]; // An account can only spend the allowance delegated to it. Default allowance is 0.
+        uint limit = allowance(from, sender); // An account can only spend the allowance delegated to it. Default allowance is 0.
         if (Lunari > limit) {
             revert InsufficientAllowance({ attempted: Lunari, allowance: limit });
         }
         unchecked { 
             _approve(from, sender, (limit - Lunari)); // decreaseAllowance(from, Lunari);
-        }
+        } 
         return _transfer(from, to, Lunari, false);
     }
     
-    /***************************   Internal Virtual Implementation Functions  ***************************/
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////// Internal Virtual Implementation Functions ////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    function _afterTokenTransfer (address from, address to, uint Lunari) internal virtual returns (bool) {}
-    function _beforeTokenTransfer(address from, address to, uint Lunari) internal virtual returns (uint) {} // bool
-
-    /// @dev Internal implementation of `_approve()`. Can be overridden.
-    function _approve(address holder, address spender, uint Lunari) internal virtual returns (bool) {
-
-        if (holder == NULL || holder == BURN || spender == NULL || spender == BURN) { revert InvalidApproval(); }
-        addresses[holder].allowances[spender] = Lunari;
-        emit Approval(holder, spender, Lunari);   
-        return true;
-    }
-
-    /// @dev Internal implementation of `_balanceOf()`. Can be overridden.
-    function _balanceOf(address account) internal view virtual returns (uint) { 
-        return addresses[account].balance;
-    }
-
-    /// @dev Returns a balance with decimals from one without decimals. Can be overridden.
-    function _pow(uint x, uint _decimals) internal pure virtual returns (uint) { 
+    function _pow10(uint x, uint8 _decimals) internal pure virtual returns (uint) { 
         unchecked { return x * (10 ** _decimals); }
     }
 
-    /// @dev Internal implementation of `_transfer()`. Can be overridden.
-    function _transfer(address from, address to, uint Lunari, bool ForceFeeExemption) internal virtual returns (bool) {
-
-        _beforeTokenTransfer(from, to, Lunari);
-
-        if (from == NULL || to == NULL || from == BURN) { revert InvalidTransfer(); } // Allow direct transfers to the BURN address.
-
-        uint senderBalance = addresses[from].balance;
-
-        if (Lunari > senderBalance) {
-            revert InsufficientBalance({ attempted: Lunari, available: senderBalance });
-        }
-        unchecked { addresses[from].balance = (senderBalance - Lunari); }
-
-        addresses[to].balance += Lunari;
-        emit Transfer(from, to, Lunari);
-
-        _afterTokenTransfer(from, to, Lunari);
+    /// @dev Internal virtual implementation of `approve()`.
+    function _approve(address holder, address spender, uint limit) internal virtual returns (bool) {
+        if (holder == NULL || holder == BURN || spender == NULL || spender == BURN) { revert InvalidApproval(); }
+        allowances[holder][spender] = limit;
+        emit Approval(holder, spender, limit);   
         return true;
     }
+
+    /// @dev Internal virtual implementation of `transfer()`
+    function _transfer(address from, address to, uint amount) internal virtual returns (bool) {
+        return _transfer(from, to, amount, false);
+    }
+
+    /// @dev Internal virtual shadowed implementation of `_transfer()`.
+    function _transfer(address from, address to, uint amount, bool) internal virtual returns (bool) {
+        _beforeTokenTransfer(from, to, amount);
+
+        balances[from] -= amount;
+        balances[to] += amount;
+
+        emit Transfer(from, to, amount);
+        _afterTokenTransfer(from, to, amount);
+        return true;
+    }
+
+    function _beforeTokenTransfer(address from, address to, uint amount) internal virtual {}
+    function _afterTokenTransfer (address from, address to, uint amount) internal virtual {}
+
 }
 
 
@@ -335,8 +322,7 @@ contract YourToken is BEP21 {
             symbol: "YTC",
             version: "1.2.71",
             decimals: 18,
-            releaseDate: block.timestamp,
-            releaseSupply: _pow(1e11, 18)
+            totalSupply: 1e11
         })
     ) {
 
