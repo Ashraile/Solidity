@@ -1,5 +1,5 @@
-/// SPDX-License-Identifier: MIT
-/** @author Jasper Wolf (https://github.com/Ashraile)
+/** SPDX-License-Identifier: MIT
+    @author Jasper Wolf (https://github.com/Ashraile)
     @title BEP21.sol
 */
 
