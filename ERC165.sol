@@ -1,3 +1,10 @@
+/** SPDX-License-Identifier: MIT 
+    @title ERC165 To-spec Implementation
+    @custom:improv Ashraile
+*/
+
+pragma solidity ^0.8.21;
+
 /// @notice IID: 0x01ffc9a7
 interface IERC165 {
     function supportsInterface(bytes4 IID) external view returns (bool); /// @dev Returns true if the contract supports the given interface.
