@@ -1,6 +1,6 @@
 /// @notice IID: 0x01ffc9a7
 interface IERC165 {
-    function supportsInterface(bytes4 interfaceID) external view returns (bool); /// @dev Returns true if the contract supports the given interface.
+    function supportsInterface(bytes4 IID) external view returns (bool); /// @dev Returns true if the contract supports the given interface.
 }
 
 /**
