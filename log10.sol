@@ -16,7 +16,7 @@ contract Log10Variants {
         if (value >= 10)       { result += 1; }
     }}
 
-     function _log10_v2(uint value) public pure returns (uint result) {  unchecked  {
+    function _log10_v2(uint value) public pure returns (uint result) {  unchecked  {
         for (uint i = 64; i > 0; i /= 2) {
             if (value >= 10 ** i) { value /= 10 ** i; result += i; }
         }
