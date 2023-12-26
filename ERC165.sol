@@ -23,9 +23,7 @@ abstract contract ERC165 is IERC165 {
     /// @dev See {IERC165-supportsInterface}. Time complexity O(1), guaranteed to always use less than 30 000 gas.
     mapping(bytes4 IID => bool) public supportsInterface;
     
-    /** 
-     * @dev Registers the contract as an implementer of an interface. `interfaceId` cannot be the ERC165 invalid interface (`0xffffffff`).
-     */
+    /// @dev Registers the contract as an implementer of an interface. `interfaceId` cannot be the ERC165 invalid interface (`0xffffffff`).
     function _registerInterface(bytes4 IID) internal virtual {
         if (IID == 0xffffffff) { revert ERC165InvalidInterface(); }
         supportsInterface[IID] = true;
