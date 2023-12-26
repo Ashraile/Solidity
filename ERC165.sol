@@ -2,7 +2,6 @@
     @title ERC165 To-spec Implementation
     @custom:improv Ashraile
 */
-
 pragma solidity ^0.8.21;
 
 /// @notice IID: 0x01ffc9a7
@@ -32,3 +31,4 @@ abstract contract ERC165 is IERC165 {
         supportsInterface[IID] = true;
     }
 }
+
