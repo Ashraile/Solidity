@@ -15,7 +15,7 @@ error ERC721NonexistentToken(uint tokenID);
 
 /// @dev A library to implement {ERC721Enumerable} with near-arbitrary numbers of contiguous NFTs (supports burning) in solidity 0.8+
 /// @author Jasper Wolf (ashraile)
-/// @custom:version 2.0
+/// @custom:version 1.0
 library VirtualStorage {
 
     error ERC721Empty();
