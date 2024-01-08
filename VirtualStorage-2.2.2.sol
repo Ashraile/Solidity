@@ -174,7 +174,7 @@ contract Fractional is Context {
 
     constructor() {
         THIS = payable(address(this));
-        TokenVault.create({ from: 789, to: 812 }); // AllTokensIndex.create( InitialNFTSupply );
+        TokenVault.create({ from: 1234, to: 812032358201232011199264888 }); // AllTokensIndex.create( InitialNFTSupply );
     }
 
     /// @notice All tokens owned by address(this)
