@@ -15,7 +15,7 @@ interface IERC165 {
  * Derived contracts need only register support for their own interfaces; we register support for ERC165 itself here.
  */
 abstract contract ERC165 is IERC165 {
-    constructor() { _registerInterface(0x01ffc9a7); } // bytes4(keccak256('supportsInterface(bytes4)')) == 0x01ffc9a7
+    constructor() { _registerInterface(0x01ffc9a7); } // => bytes4(keccak256('supportsInterface(bytes4)'))
 
     /// @dev See {IERC165-supportsInterface}. Time complexity O(1), guaranteed to always use less than 30 000 gas.
     mapping (bytes4 IID => bool) public supportsInterface;
@@ -28,4 +28,4 @@ abstract contract ERC165 is IERC165 {
 
 contract TestInterface is ERC165 {}
 
-
+// ~
