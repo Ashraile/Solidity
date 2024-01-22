@@ -5,7 +5,7 @@
 */
 pragma solidity ^0.8.21;
 
-/// @dev Returns true if the contract supports the given interface. @notice IID: 0x01ffc9a7
+/// @dev Returns true if the contract supports the given interface. @custom:IID 0x01ffc9a7
 interface IERC165 {
     function supportsInterface(bytes4 IID) external view returns (bool);
 }
