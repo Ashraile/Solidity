@@ -65,6 +65,8 @@ abstract contract Administrator is Context {
         bool isLevelLocked; // default false
     }
 
+    error InsufficientAccess();
+
      // Different addresses can map to different owner privileges.
     mapping (address => UserAccountControl) internal UAC;
 
@@ -84,28 +86,14 @@ abstract contract Administrator is Context {
     // And create a modifier where it warrants reuse.
 
     // maximum clearance but not administrator / owner
-    modifier max_level {
-        require( UAC[_msgSender()].access == MAX_CLEARANCE, "Admin: Insufficient clearance."); _;
-    }
-
-    modifier level4 {
-        require( UAC[_msgSender()].access > 3, "Admin: Insufficient access." ); _;
-    }
-
-    modifier level3 {
-        require( UAC[_msgSender()].access > 2, "Admin: Insufficient access." ); _;
-    }
-
-    modifier level2 {
-        require( UAC[_msgSender()].access > 1, "Admin: Insufficient privilege." ); _;
-    }
-
-    modifier level1 {
-        require( UAC[_msgSender()].access > 0, "Check your privilege." ); _;
+    modifier access (uint access) {
+        if (UAC[_msgSender()].access < access) { 
+            revert InsufficientAccess();
+        }
     }
 
     /// @dev Set a cap on who can change access clearance by changing the modifier entry for this function.
-    function setAccessClearance(address account, uint access_level) external virtual max_level returns (bool) {
+    function setAccessClearance(address account, uint access_level) external virtual access(5) returns (bool) {
 
         require( access_level >= 0 && access_level <= MAX_CLEARANCE, "Admin: Invalid access level specified.");
 
@@ -115,7 +103,7 @@ abstract contract Administrator is Context {
         return true;
     }
 
-    function toggleLevelLock(address account, bool toggle) external max_level returns (bool) {
+    function toggleLevelLock(address account, bool toggle) external access(5) returns (bool) {
         UAC[account].isLevelLocked = toggle;
         return true;
     }
@@ -126,7 +114,7 @@ abstract contract Administrator is Context {
 
     /// @dev downgrades an account's clearance by 1 level. Accounts below the required modifier clearance cannot modify access levels.
     // if an account is level locked, only max clearance can unlock it
-    function downgradeAccess(address account) external virtual level3 returns (bool) { 
+    function downgradeAccess(address account) external virtual access(3) returns (bool) { 
         
         bool callerUnlockPrivilege = (UAC[_msgSender()].access == MAX_CLEARANCE);
 
@@ -142,7 +130,7 @@ abstract contract Administrator is Context {
 
     
     /// @dev upgrades an account's clearance by 1 level.
-    function upgradeAccess(address account) external virtual max_level returns (bool) {
+    function upgradeAccess(address account) external virtual access(5) returns (bool) {
 
         bool callerUnlockPrivilege = (UAC[_msgSender()].access == MAX_CLEARANCE);
    
