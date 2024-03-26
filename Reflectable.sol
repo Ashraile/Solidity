@@ -416,6 +416,8 @@ abstract contract ERC20Reflectable is ERC20 {
 }
 
 function TestToken is ERC20Reflectable, ERC165 {
+    string public constant override name = "TESTTOKEN1";
+
     constructor() payable
         ERC20(
             _init({
