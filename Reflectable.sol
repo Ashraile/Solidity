@@ -415,8 +415,9 @@ abstract contract ERC20Reflectable is ERC20 {
     // function reflectionFromToken(uint tAmount, bool deductTransferFee) public view virtual returns (uint rOwned) {}
 }
 
-function TestToken is ERC20Reflectable, ERC165 {
-    string public constant override name = "TESTTOKEN1";
+contract TestToken is ERC20Reflectable, ERC165 {
+
+    string public constant override name = "TESTTOKEN1"; // client side gas savings
 
     constructor() payable
         ERC20(
