@@ -13,6 +13,6 @@ abstract contract Prototype {
          _; 
         console.log(_gas - gasleft());
     }
-    bool internal immutable REMIX = (block.chainid == 1 && block.number < 1e6);
+    bool public immutable REMIX_TEST_ENVIRONMENT = (block.chainid == 1 && block.number < 1e6);
 }
 
