@@ -1,6 +1,5 @@
 /// SPDX-License-Identifier: MIT
 /// @author Ashraile
-
 pragma solidity >=0.8.21 <0.9.0;
 
 import "hardhat/console.sol";
@@ -16,3 +15,4 @@ abstract contract Prototype {
     }
     bool internal immutable REMIX = (block.chainid == 1 && block.number < 1e6);
 }
+
