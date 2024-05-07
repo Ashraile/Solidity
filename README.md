@@ -2,11 +2,14 @@
 Solidity Projects
 .
 
-## Reflected.sol: ## 
+## Reflectable.sol: ## 
 
 Contract module allowing a token to incorporate reflections into its transactions. 
-Inherits BEP21.sol
+Inherits `BEP20.sol`
 
+## Reflectable128x128.sol ##
+
+Same as `Reflectable.sol`, but uses packed `uint128` numbers instead of `uint256`, reducing transfer gas costs by 30%.
 
 ## VirtualStorage.sol: ##
 
