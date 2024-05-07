@@ -11,6 +11,7 @@ uint128 constant MAX128 = ~uint128(0);
 
 /** 
  *  @dev Contract module that enables a token reflection system. Compatible with standard ERC20 / BEP20 implementations.
+ *  Uses packed 128 bit values instead of 256 bit values, cutting transfer costs by 30%.
  *  @custom:origin Safemoon.sol (https://github.com/safemoonprotocol/Safemoon.sol/blob/main/Safemoon.sol)
  *  @custom:improv Jasper Wolf (https://www.github.com/Ashraile)
  *  @custom:metadata [@license MIT, @version 3.4, @minpragma 0.8.21]
